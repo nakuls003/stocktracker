@@ -1,0 +1,108 @@
+{% extends 'mainapp/basic.html' %}
+{% load static %}
+{% load myfilters %}
+
+{% block title %}
+  StockTracker
+{% endblock %}
+
+{% block css %}
+  <style>
+    .red {
+      color: red;
+    }
+    .green {
+      color: green;
+    }
+    .table-container {
+      overflow-x: scroll;
+    }
+  </style>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+  <h1>Live stock updates</h1>
+  <div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th scope="col">SNo.</th>
+        <th scope="col">Stock</th>
+        <th scope="col">Price</th>
+        <th scope="col">Previous Close</th>
+        <th scope="col">Open</th>
+        <th scope="col">Change</th>
+        <th scope="col">Market Cap</th>
+        <th scope="col">Volume</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for stock, info in data.items %}
+        <tr>
+          <th>{{ forloop.counter }}</th>
+          <td>{{ stock }}</td>
+          <td id="{{ stock }}_price">{{ info|get:"Quote Price"|floatformat:2 }}</td>
+          <td id="{{ stock }}_prevclose">{{ info|get:"Previous Close"|floatformat:2 }}</td>
+          <td id="{{ stock }}_open">{{ info|get:"Open"|floatformat:2 }}</td>
+          <td id="{{ stock }}_change">
+            <script>
+              var change = document.getElementById("{{ stock }}_price").innerHTML - document.getElementById("{{ stock }}_prevclose").innerHTML;
+              change = Number(change).toFixed(2);
+              if (change >= 0) {
+                  document.getElementById("{{ stock }}_change").className = "green";
+                  document.getElementById("{{ stock }}_change").innerHTML = "+" + change;
+
+              }
+              else {
+                  document.getElementById("{{ stock }}_change").className = "red";
+                  document.getElementById("{{ stock }}_change").innerHTML = change;
+              }
+            </script>
+          </td>
+          <td id="{{ stock }}_cap">{{ info|get:"Market Cap" }}</td>
+          <td id="{{ stock }}_volume">{{ info|get:"Volume" }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+  <script>
+    var queryString = window.location.search.substring(1);
+    console.log("querystring = " + queryString);
+    var socket = new WebSocket(
+      'ws://' + window.location.host + '/ws/stocks/' + '?' + queryString
+    );
+
+    socket.onmessage = function(e) {
+        console.log(e.data);
+        const data = JSON.parse(e.data);
+        console.log(data);
+        for (const [stock, info] of Object.entries(data)) {
+            console.log("target element id: " + stock + "_price");
+            document.getElementById(stock + "_price").innerHTML = Number(info["Quote Price"]).toFixed(2);
+            document.getElementById(stock + "_prevclose").innerHTML = Number(info["Previous Close"]).toFixed(2);
+            document.getElementById(stock + "_open").innerHTML = Number(info["Open"]).toFixed(2);
+
+            var change = document.getElementById(stock + "_price").innerHTML - document.getElementById(stock + "_prevclose").innerHTML;
+            change = Number(change).toFixed(2);
+            if (change >= 0) {
+                document.getElementById(stock + "_change").className = "green";
+                document.getElementById(stock + "_change").innerHTML = "+" + change;
+
+            }
+            else {
+                document.getElementById(stock + "_change").className = "red";
+                document.getElementById(stock + "_change").innerHTML = change;
+            }
+
+            document.getElementById(stock + "_cap").innerHTML = info["Market Cap"];
+            document.getElementById(stock + "_volume").innerHTML = info["Volume"];
+        }
+    }
+  </script>
+{% endblock %}
